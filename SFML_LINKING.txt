@@ -1,0 +1,8 @@
+[Dependencies for SFML/Graphics.hpp] (add -d for debug)
+sfml-graphics-s.lib
+sfml-window-s.lib
+sfml-system-s.lib
+freetype.lib
+winmm.lib
+gdi32.lib
+opengl32.lib
