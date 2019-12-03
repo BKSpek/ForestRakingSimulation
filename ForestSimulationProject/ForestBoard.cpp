@@ -8,15 +8,15 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 	window.create(sf::VideoMode(800, 600), "Forest Simulation");
 
 	//load the font file
-	sf::Font font;
-	if (!font.loadFromFile("../Font/JerseyM54-aLX9.ttf"))
+	
+	if (!tileSprite.font.loadFromFile("../Font/JerseyM54-aLX9.ttf"))
 	{
 		std::cout << "Failed to load font file" << std::endl;
 		abort();
 	}
 
 	//init the tileSprite object with the font
-	tileSprite.text.setFont(font);
+	tileSprite.text.setFont(tileSprite.font);
 	tileSprite.text.setCharacterSize(20);
 
 
@@ -56,7 +56,7 @@ void ForestBoard::drawTile(int row, int col)
 	{
 		//draw the rectangle
 		tileSprite.rect.setPosition(col * tileSprite.rect.getSize().x, row * tileSprite.rect.getSize().y);
-		tileSprite.rect.setFillColor(sf::Color(0, 255 - (board[row][col].leafAmount / 10), 0));
+		tileSprite.rect.setFillColor(sf::Color(0, std::max(255 - (board[row][col].leafAmount), 0), 0));
 		window.draw(tileSprite.rect);
 
 		//draw the text
@@ -65,7 +65,7 @@ void ForestBoard::drawTile(int row, int col)
 		window.draw(tileSprite.text);
 	}
 
-	handleInputEvents();
+	//handleInputEvents();
 }
 
 void ForestBoard::drawBoard()

@@ -10,6 +10,7 @@ struct TileSprite
 {
 	sf::Text text;
 	sf::RectangleShape rect;
+	sf::Font font;
 };
 
 class ForestBoard
