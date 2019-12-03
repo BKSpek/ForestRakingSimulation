@@ -65,7 +65,7 @@ void ForestBoard::drawTile(int row, int col)
 		window.draw(tileSprite.text);
 	}
 
-	//handleInputEvents();
+	handleInputEvents();
 }
 
 void ForestBoard::drawBoard()
