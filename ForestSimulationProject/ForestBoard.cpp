@@ -6,6 +6,7 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 {
 	//create the window
 	window.create(sf::VideoMode(800, 600), "Forest Simulation");
+	//window.create(sf::VideoMode(1280, 600), "Forest Simulation");
 
 	//load the font file
 	
@@ -17,7 +18,7 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 
 	//init the tileSprite object with the font
 	tileSprite.text.setFont(tileSprite.font);
-	tileSprite.text.setCharacterSize(20);
+	tileSprite.text.setCharacterSize(12); //20
 
 
 	//update the tile size
@@ -130,7 +131,7 @@ void ForestBoard::handleInputEvents()
 		if (e.type == sf::Event::Closed)
 		{
 			window.close();
-			abort();
+			exit(0);
 		}
 	}
 }

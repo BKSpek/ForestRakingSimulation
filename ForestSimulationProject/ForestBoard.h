@@ -4,6 +4,7 @@
 struct ForestTile
 {
 	int leafAmount = 0;
+
 };
 
 struct TileSprite
