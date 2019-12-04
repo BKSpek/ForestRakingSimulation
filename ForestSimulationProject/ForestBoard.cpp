@@ -55,13 +55,19 @@ void ForestBoard::drawTile(int row, int col)
 {
 	if (isValidTile(row, col, "drawTile"))
 	{
-		//draw the rectangle
+		//set the tileSprite position
 		tileSprite.rect.setPosition(col * tileSprite.rect.getSize().x, row * tileSprite.rect.getSize().y);
-		tileSprite.rect.setFillColor(sf::Color(0, std::max(255 - (board[row][col].leafAmount), 0), 0));
+
+		if(board[row][col].isOnFire) //if on fire, color red
+			tileSprite.rect.setFillColor(sf::Color(255, 0, 0));
+		else //else color shade of green
+			tileSprite.rect.setFillColor(sf::Color(0, std::max(int(255 - (255 * board[row][col].leafVolume)), 0), 0));
+
+		//draw the rectangle
 		window.draw(tileSprite.rect);
 
-		//draw the text
-		tileSprite.text.setString(std::to_string(board[row][col].leafAmount));
+		//update values + draw the text
+		tileSprite.text.setString(std::to_string(board[row][col].leafVolume));
 		tileSprite.text.setPosition(tileSprite.rect.getPosition());
 		window.draw(tileSprite.text);
 	}

@@ -3,8 +3,11 @@
 
 struct ForestTile
 {
-	int leafAmount = 0;
-
+	double leafVolume = 0;
+	bool isOnFire = false;
+	bool willBeOnFire = false;
+	int fireEndTime = 0;
+	double nutrientVolume = 0;
 };
 
 struct TileSprite
@@ -25,12 +28,13 @@ public:
 	ForestTile* getForestTile(int row, int col);
 	bool isValidTile(int row, int col);
 
+	void handleInputEvents();
+
 	ForestBoard(int height, int width);
 	~ForestBoard();
 private:
 	bool isValidTile(int row, int col, std::string funcName);
-	void handleInputEvents();
-
+	
 	int width, height;
 	ForestTile** board;
 	sf::RenderWindow window;
