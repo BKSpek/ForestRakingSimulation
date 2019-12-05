@@ -92,7 +92,7 @@ bool is_absorbing_state(ForestBoard & board) {
 	};
 
 	//If leaf volume == 0 or MAX, return true. (Note: Adjusted by 0.001 to account for c++ rounding errors)
-	if (total_leaf_volume < 0.001 || total_leaf_volume >((rows*cols) - 0.001)) {
+	if (total_leaf_volume < 0.001 || total_leaf_volume > ((rows*cols) - 0.001)) {
 		return true;
 	}
 	//Else return true
@@ -225,7 +225,7 @@ void update_leaves(ForestBoard & board) {
 				double new_leaf_fall = (double)leaf_fall_generator(generator) / 1000;
 				double new_leaf_growth = (double)leaf_growth_generator(generator) / 1000;
 				//Change in leaf volume
-				double change_in_leaf = new_leaf_growth - new_leaf_fall;
+				double change_in_leaf = new_leaf_growth + new_leaf_fall;
 				//Update leaf volume in block. Leaf volume exceeds max. Set to 1.
 				if (board.getForestTile(i, j)->leafVolume + change_in_leaf > 1.0) {
 					board.getForestTile(i, j)->leafVolume = 1.0;
