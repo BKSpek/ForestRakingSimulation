@@ -1,6 +1,10 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 
+//define this here, so it's easier to modify I guess...
+//#define VISUALIZE
+constexpr int numTrials = 1000;
+
 struct ForestTile
 {
 	double leafVolume = 0;

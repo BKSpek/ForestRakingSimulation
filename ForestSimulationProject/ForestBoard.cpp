@@ -4,6 +4,7 @@
 
 ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 {
+#ifdef VISUALIZE
 	//create the window
 	window.create(sf::VideoMode(800, 600), "Forest Simulation");
 	//window.create(sf::VideoMode(1280, 600), "Forest Simulation");
@@ -19,6 +20,7 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 	//init the tileSprite object with the font
 	tileSprite.text.setFont(tileSprite.font);
 	tileSprite.text.setCharacterSize(12); //20
+	tileSprite.text.setFillColor(sf::Color::Black);
 
 
 	//update the tile size
@@ -29,6 +31,7 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 	tileSprite.rect.setSize(sf::Vector2f(tileWidth, tileHeight));
 	tileSprite.rect.setOutlineColor(sf::Color(0, 0, 0));
 	tileSprite.rect.setOutlineThickness(4);
+#endif
 
 	//create the board
 	board = new ForestTile*[height];
@@ -36,11 +39,13 @@ ForestBoard::ForestBoard(int height, int width) : height(height), width(width)
 	for (int i = 0; i < height; i++)
 		board[i] = new ForestTile[width];
 
+#ifdef VISUALIZE
 	//draw the board
 	drawBoard();
 
 	//display the board
 	display();
+#endif
 }
 
 ForestBoard::~ForestBoard()
@@ -60,6 +65,8 @@ void ForestBoard::drawTile(int row, int col)
 
 		if(board[row][col].isOnFire) //if on fire, color red
 			tileSprite.rect.setFillColor(sf::Color(255, 0, 0));
+		else if(board[row][col].leafVolume == 0)
+			tileSprite.rect.setFillColor(sf::Color(255, 255, 255)); //white
 		else //else color shade of green
 			tileSprite.rect.setFillColor(sf::Color(0, std::max(int(255 - (255 * board[row][col].leafVolume)), 0), 0));
 

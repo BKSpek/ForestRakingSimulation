@@ -7,23 +7,31 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <numeric>
 
 #include "ForestBoard.h"
 
+/*
+	raking freq 12 was stable
+	20 - tending towards overgrow, but not quite
+*/
+
 //Global parameters
-int T = 1000;                           //Maximum runtime of simulation in days.
-int raking_frequency = 7;                 //Raking cycle in days.
-double raking_amount = 0.0001;            //Volume of leaf removed at each raking cycle. Value between 0 - 1.
+int T = 18250;                             //Maximum runtime of simulation in days.
+int raking_frequency = 12;                //Raking cycle in days.
+double raking_amount = 0.06;              //Volume of leaf removed at each raking cycle. Value between 0 - 1.
 double nutrient_depletion_rate = 0.001;   //Amount of nutrients depleted from each forest block per day.
-double average_leaf_fall = 0.015;         //Average daily leaf fall.
+double average_leaf_fall = 0.001;         //Average daily leaf fall.
 double seasonal_leaf_fall_inc = 0.001;    //Seasonal impact on average leaf fall. 0.001, 0.001, 0.005 and 0.000 for spring, summer, fall & winter, respectively.
 double seasonal_leaf_growth_inc = 0.001;  //Seasonal impact on average leaf growth. 0.005, 0.001, 0.000 and 0.000 for spring, summer, fall & winter, respectively.
-double average_leaf_growth = 0.008;       //Average daily leaf growth.
+double average_leaf_growth = 0.001;       //Average daily leaf growth.
 int average_fire_duration = 5;            //Avergae length of fire.
 int season_length = 91;                   //Length of each season in days.
-double p_fire_neighbor_c = 0.050; //Fixed probability increase of catching fire for each corner neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
-double p_fire_neighbor_e = 0.075; //Fixed probability increase of catching fire for each edge neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
-double p_fire_season = 0.001;     //Fixed probability increase of catching fire by season. 0.001, 0.002, 0.008, 0.004 for spring, summer, fall & winter, respectively.
+double p_fire_neighbor_c = 0.025; //Fixed probability increase of catching fire for each corner neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
+double p_fire_neighbor_e = 0.025; //Fixed probability increase of catching fire for each edge neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
+double p_fire_season = 0;       //Fixed probability increase of catching fire by season. 0.001, 0.002, 0.008, 0.004 for spring, summer, fall & winter, respectively.
+double p_fire_season_base_rate = 0.00001;
+double leaf_fire_contribution = 0.000007;
 
 //Utility Parameters
 int rows = 1;                             //Number of rows of forest blocks.
@@ -92,7 +100,12 @@ bool is_absorbing_state(ForestBoard & board) {
 	};
 
 	//If leaf volume == 0 or MAX, return true. (Note: Adjusted by 0.001 to account for c++ rounding errors)
-	if (total_leaf_volume < 0.001 || total_leaf_volume > ((rows*cols) - 0.001)) {
+	if (total_leaf_volume < 0.001) {
+		std::cout << "Reaches absorbing state barren" << std::endl;
+		return true;
+	}
+	else if (total_leaf_volume > ((rows*cols) - 0.001)) {
+		std::cout << "Reaches absorbing state overgrowth" << std::endl;
 		return true;
 	}
 	//Else return true
@@ -105,7 +118,7 @@ bool is_absorbing_state(ForestBoard & board) {
 void morning_update(int time, ForestBoard & board) {
 	//Checking of raking is required.
 	bool raking_required;
-	if (time % raking_frequency == 0) {
+	if (time > 0 && time % raking_frequency == 0) {
 		raking_required = true;
 	}
 	else {
@@ -193,13 +206,13 @@ void check_new_fire(int time, ForestBoard & board) {
 				};
 
 				//Calculate probability contribution from leaf volume
-				double p_fire_leaf = board.getForestTile(i, j)->leafVolume * 0.25;
+				double p_fire_leaf = board.getForestTile(i, j)->leafVolume * leaf_fire_contribution;
 				//Calculate total probability
 				double p_fire = p_fire_season + p_fire_neighbor + p_fire_leaf;
 
 				//Check if fire will start
 				double rand_var = uniform_generator(generator);
-				if (rand_var <= p_fire) {
+				if (rand_var < p_fire) {
 					//If fire will start, update to start next day, generate and update duration of fire.
 					board.getForestTile(i, j)->willBeOnFire = true;
 					int t_fire = fire_duration_generator(generator);
@@ -273,6 +286,32 @@ void print_int_matrix(std::vector<std::vector<int>> matrix, int num_rows, int nu
 	};
 };
 
+void calculateResults(std::vector<int> & t_vals)
+{
+	if (t_vals.empty())
+	{
+		std::cout << "t_vals is empty, nothing to compute" << std::endl;
+		return;
+	}
+
+	//find the sample mean
+	double sample_mean_t_value = double(std::accumulate(t_vals.begin(), t_vals.end(), 0)) / double(t_vals.size());
+
+	//find the sample variance
+	double sampleVariance = 0;
+	for (auto t : t_vals) sampleVariance += pow(t - sample_mean_t_value, 2);
+	sampleVariance = sampleVariance / double(t_vals.size() - 1);
+	sampleVariance = sqrt(sampleVariance);
+
+	//define z for 95% confidence interval
+	double z = 1.96;
+
+	//compute the confidence interval
+	double CI = z * (sampleVariance / sqrt(t_vals.size()));
+
+	printf("The mean t for %d trials is %f +- %f, \n", numTrials, sample_mean_t_value, CI);
+}
+
 int main() {
 
 	//I/O to retrieve forest size
@@ -284,84 +323,100 @@ int main() {
 	//seed the generator
 	generator.seed(time(0));
 
-	//init the board
-	ForestBoard board(rows, cols);
+	//statistics vars
+	std::vector<int> t_values;
 
-	//Resize and update all utility matrices as per rows and cols input
-	resize_matrices();
-	update_neighbors();
-
-	//Perform simulation untill max simulation time is reached or an absorbing state is reached
-	bool absorbing_state = false;
-	int t = 0;                //Variable to keep track of days.
-	int season_counter = 0;   //Variable to track current season.
-	while (t < T && !absorbing_state) {
-		//Determine current season
-		if (season_counter == season_length) {
-			++season;
-			if (season > 3) {
-				season = 0;
-			};
-			season_counter = 0;
-		};
-
-		//Change seasonal parameters.
-		//Spring
-		if (season == 0) {
-			seasonal_leaf_fall_inc = 0.001;
-			seasonal_leaf_growth_inc = 0.005;
-			p_fire_season = 0.001;
-		};
-		//Summer
-		if (season == 1) {
-			seasonal_leaf_fall_inc = 0.001;
-			seasonal_leaf_growth_inc = 0.001;
-			p_fire_season = 0.002;
-		};
-		//Fall
-		if (season == 2) {
-			seasonal_leaf_fall_inc = 0.005;
-			seasonal_leaf_growth_inc = 0.000;
-			p_fire_season = 0.008;
-		};
-		//Winter
-		if (season == 3) {
-			seasonal_leaf_fall_inc = 0.000;
-			seasonal_leaf_growth_inc = 0.000;
-			p_fire_season = 0.004;
-		};
-
-		//Rake leaves if required, update nutrient depletion and check if fire is scheduled to start/end
-		morning_update(t, board);
-		//Update leaf volumes
-		update_leaves(board);
-		//Check if new fires will start
-		check_new_fire(t, board);
-		//Check if absorbing states are reached
-		absorbing_state = is_absorbing_state(board);
-
-		//TESTING
-			//print_double_matrix(L, rows, cols);
-			//print_bool_matrix(F, rows, cols);
-			//print_bool_matrix(F_nextday, rows, cols);
-			//print_int_matrix(F_endtimes, rows, cols);
-
-		//Increment time counters
-		++t;
-		++season_counter;
-
-		//visualize
-		board.drawBoard();
-		board.display();
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	};
-
-	//keep the app running
-	while (1)
+	for (int trial = 0; trial < numTrials; trial++)
 	{
-		board.handleInputEvents();
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//init the board
+		ForestBoard board(rows, cols);
+
+		//Resize and update all utility matrices as per rows and cols input
+		resize_matrices();
+		update_neighbors();
+
+		//Perform simulation untill max simulation time is reached or an absorbing state is reached
+		bool absorbing_state = false;
+		int t = 0;                //Variable to keep track of days.
+		int season_counter = 0;   //Variable to track current season.
+		while (t < T && !absorbing_state) {
+			//Determine current season
+			if (season_counter == season_length) {
+				++season;
+				if (season > 3) {
+					season = 0;
+				}
+				season_counter = 0;
+			}
+
+			//Change seasonal parameters.
+			//Spring
+			if (season == 0) {
+				seasonal_leaf_fall_inc = 0.001;
+				seasonal_leaf_growth_inc = 0.005;
+				p_fire_season = p_fire_season_base_rate * 1;
+			}
+			//Summer
+			else if (season == 1) {
+				seasonal_leaf_fall_inc = 0.001;
+				seasonal_leaf_growth_inc = 0.001;
+				p_fire_season = p_fire_season_base_rate * 2;
+			}
+			//Fall
+			else if (season == 2) {
+				seasonal_leaf_fall_inc = 0.005;
+				seasonal_leaf_growth_inc = 0.000;
+				p_fire_season = p_fire_season_base_rate * 8;
+			}
+			//Winter
+			else if (season == 3) {
+				seasonal_leaf_fall_inc = 0.000;
+				seasonal_leaf_growth_inc = 0.000;
+				p_fire_season = p_fire_season_base_rate * 4;
+			}
+
+			//Update leaf volumes
+			update_leaves(board);
+			//Rake leaves if required, update nutrient depletion and check if fire is scheduled to start/end
+			morning_update(t, board);
+			//Check if new fires will start
+			check_new_fire(t, board);
+			//Check if absorbing states are reached
+			absorbing_state = is_absorbing_state(board);
+
+			//TESTING
+				//print_double_matrix(L, rows, cols);
+				//print_bool_matrix(F, rows, cols);
+				//print_bool_matrix(F_nextday, rows, cols);
+				//print_int_matrix(F_endtimes, rows, cols);
+
+			//Increment time counters
+			++t;
+			++season_counter;
+
+#ifdef VISUALIZE
+			//visualize
+			board.drawBoard();
+			board.display();
+			//std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+		};
+
+		t_values.push_back(t);
+
+#ifdef VISUALIZE
+		//keep the app running
+		while (1)
+		{
+			board.handleInputEvents();
+			//std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+#endif // VISUALIZE;
 	}
+
+	calculateResults(t_values);
+	
+	std::getchar();
 
 	return 0;
 };
