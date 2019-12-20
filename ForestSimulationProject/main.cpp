@@ -8,16 +8,12 @@
 #include <thread>
 #include <chrono>
 #include <numeric>
+#include <fstream>
 
 #include "ForestBoard.h"
 
-/*
-	raking freq 12 was stable
-	20 - tending towards overgrow, but not quite
-*/
-
 //Global parameters
-int T = 18250;                             //Maximum runtime of simulation in days.
+int T = 18250; //730;// 18250;              //Maximum runtime of simulation in days.
 int raking_frequency = 12;                //Raking cycle in days.
 double raking_amount = 0.06;              //Volume of leaf removed at each raking cycle. Value between 0 - 1.
 double nutrient_depletion_rate = 0.001;   //Amount of nutrients depleted from each forest block per day.
@@ -27,11 +23,11 @@ double seasonal_leaf_growth_inc = 0.001;  //Seasonal impact on average leaf grow
 double average_leaf_growth = 0.001;       //Average daily leaf growth.
 int average_fire_duration = 5;            //Avergae length of fire.
 int season_length = 91;                   //Length of each season in days.
-double p_fire_neighbor_c = 0.025; //Fixed probability increase of catching fire for each corner neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
-double p_fire_neighbor_e = 0.025; //Fixed probability increase of catching fire for each edge neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
-double p_fire_season = 0;       //Fixed probability increase of catching fire by season. 0.001, 0.002, 0.008, 0.004 for spring, summer, fall & winter, respectively.
-double p_fire_season_base_rate = 0.00001;
-double leaf_fire_contribution = 0.000007;
+double p_fire_neighbor_c = 0.005; //Fixed probability increase of catching fire for each corner neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
+double p_fire_neighbor_e = 0.005; //Fixed probability increase of catching fire for each edge neighbor on fire. (4*p_fire_neighbor_c + 4*p_fire_neighbor_e <= 0.5)
+double p_fire_season = 0;       
+double p_fire_season_base_rate = 0.00001; //Fixed probability increase of catching fire by season. 0.001, 0.002, 0.008, 0.004 for spring, summer, fall & winter, respectively.
+double leaf_fire_contribution = 0.000007; //the amount that the leaf volume contributes to catching on fire
 
 //Utility Parameters
 int rows = 1;                             //Number of rows of forest blocks.
@@ -88,7 +84,7 @@ void update_neighbors() {
 };
 
 //Function to determine if an absorbing state has been reached. Absorbing states: leaf volume of entire forest = 0 or leaf volume of entire forest = MAX.
-bool is_absorbing_state(ForestBoard & board) {
+bool is_absorbing_state(ForestBoard & board, int trial, int t) {
 	//Variable to track total leaf volume in forest
 	double total_leaf_volume = 0;
 
@@ -101,11 +97,11 @@ bool is_absorbing_state(ForestBoard & board) {
 
 	//If leaf volume == 0 or MAX, return true. (Note: Adjusted by 0.001 to account for c++ rounding errors)
 	if (total_leaf_volume < 0.001) {
-		std::cout << "Reaches absorbing state barren" << std::endl;
+		std::cout << "Reaches absorbing state barren trial : " << trial << " t : " << t << std::endl;
 		return true;
 	}
 	else if (total_leaf_volume > ((rows*cols) - 0.001)) {
-		std::cout << "Reaches absorbing state overgrowth" << std::endl;
+		std::cout << "Reaches absorbing state overgrowth trial : " << trial << " t : " << t << std::endl;
 		return true;
 	}
 	//Else return true
@@ -118,7 +114,7 @@ bool is_absorbing_state(ForestBoard & board) {
 void morning_update(int time, ForestBoard & board) {
 	//Checking of raking is required.
 	bool raking_required;
-	if (time > 0 && time % raking_frequency == 0) {
+	if (time > 20 && time % raking_frequency == 0) {
 		raking_required = true;
 	}
 	else {
@@ -286,7 +282,7 @@ void print_int_matrix(std::vector<std::vector<int>> matrix, int num_rows, int nu
 	};
 };
 
-void calculateResults(std::vector<int> & t_vals)
+void calculateResults(std::vector<int> & t_vals, std::ofstream & file)
 {
 	if (t_vals.empty())
 	{
@@ -309,7 +305,9 @@ void calculateResults(std::vector<int> & t_vals)
 	//compute the confidence interval
 	double CI = z * (sampleVariance / sqrt(t_vals.size()));
 
-	printf("The mean t for %d trials is %f +- %f, \n", numTrials, sample_mean_t_value, CI);
+	printf("The mean t for %d trials with raking freq %d is %f +- %f, \n", numTrials, raking_frequency, sample_mean_t_value, CI);
+	file << "The mean t for " << numTrials << " trials with raking freq " << raking_frequency 
+		<< " is " << sample_mean_t_value << " +- "  << CI << std::endl;
 }
 
 int main() {
@@ -319,12 +317,17 @@ int main() {
 	std::cin >> rows;
 	std::cout << "Please enter the number of cols in forest: ";
 	std::cin >> cols;
+	std::cout << "Please enter the raking frequency: ";
+	std::cin >> raking_frequency;
 
 	//seed the generator
 	generator.seed(time(0));
 
 	//statistics vars
 	std::vector<int> t_values;
+
+	std::ofstream ofile(std::string("sim_results_freq_" + std::to_string(raking_frequency) + ".txt").c_str());
+	std::ofstream ofile2(std::string("sim_results_freq_mean_" + std::to_string(raking_frequency) + ".txt").c_str());
 
 	for (int trial = 0; trial < numTrials; trial++)
 	{
@@ -382,7 +385,7 @@ int main() {
 			//Check if new fires will start
 			check_new_fire(t, board);
 			//Check if absorbing states are reached
-			absorbing_state = is_absorbing_state(board);
+			absorbing_state = is_absorbing_state(board, trial, t);
 
 			//TESTING
 				//print_double_matrix(L, rows, cols);
@@ -402,20 +405,41 @@ int main() {
 #endif
 		};
 
-		t_values.push_back(t);
+		//only push if absorbing state
+		if(absorbing_state)
+			t_values.push_back(t);
+
+		std::cout << "Trial Ended : " << trial << " Absorbing State? : " << absorbing_state << std::endl;
+
+#ifdef VISUALIZE
+		if (absorbing_state)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+		}
+#endif
 
 #ifdef VISUALIZE
 		//keep the app running
-		while (1)
-		{
-			board.handleInputEvents();
-			//std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		}
+		//while (1)
+		//{
+		//	board.handleInputEvents();
+		//	//std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//}
 #endif // VISUALIZE;
 	}
 
-	calculateResults(t_values);
-	
+	//dump results
+	for (auto& elem : t_values)
+		ofile << elem << "\t";
+
+	calculateResults(t_values, ofile2);
+	ofile.close();
+	ofile2.close();
+
+	std::getchar();
+	std::getchar();
+	std::getchar();
+	std::getchar();
 	std::getchar();
 
 	return 0;

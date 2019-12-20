@@ -1,0 +1,1 @@
+The mean t for 1000 trials with raking freq 28 is 134.465 +- 47.02

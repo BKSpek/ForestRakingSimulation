@@ -1,0 +1,1 @@
+The mean t for 1000 trials with raking freq 40 is 111.008 +- 33.107

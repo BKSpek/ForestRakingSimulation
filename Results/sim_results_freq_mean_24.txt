@@ -1,0 +1,1 @@
+The mean t for 1000 trials with raking freq 24 is 101.05 +- 30.417

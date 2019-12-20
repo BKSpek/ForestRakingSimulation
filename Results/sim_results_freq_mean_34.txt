@@ -1,0 +1,1 @@
+The mean t for 1000 trials with raking freq 34 is 143.581 +- 56.3014
